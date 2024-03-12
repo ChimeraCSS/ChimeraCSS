@@ -17,7 +17,27 @@ jobs:
         name: compile themes
         steps:
         - name: Checkout code
-          uses: actions/checkout@v4
+          uses: actions/checkout@v3
+
+        - name: Install dependencies
+          run: npm install
+  
+        - name: Fetch PR branches
+          run: git fetch origin +refs/pull/*/head:refs/remotes/origin/pr/*
           
-        - name: compile sass
-          uses: ./.github/actions/compile-themes
+        - name: Determine PR number
+          id: get_pr_number
+          run: echo "::set-output name=pr_number::$(echo $GITHUB_REF | cut -d'/' -f3)"
+  
+        - name: Checkout PR branch
+          run: git checkout origin/pr/${{ steps.get_pr_number.outputs.pr_number }}
+  
+        - name: Compile Sass
+          run: npm run compile:sass
+        
+        - name: Add and commit changes
+          run: |
+            git config --global user.name "MarkusJohansen"
+            git config --global user.email "markusarj@gmail.com"
+            git add build/*.css && git diff --quiet --cached || git commit -am "🤖 Automatic compilation of Sass files"
+            git push origin HEAD:refs/heads/pr/${{ steps.get_pr_number.outputs.pr_number }}
